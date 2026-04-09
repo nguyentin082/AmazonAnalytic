@@ -1232,11 +1232,15 @@ def _fig11_reimbursement_treemap(
     temp = reimbursements.copy()
     temp["reimb_type"] = category
     temp["amount"] = _safe_col(temp, "total").abs()
-    grouped = temp.groupby("reimb_type", dropna=False)["amount"].sum().reset_index()
+    grouped = (
+        temp.groupby("reimb_type", dropna=False)
+        .agg(amount=("amount", "sum"), transaction_count=("reimb_type", "size"))
+        .reset_index()
+    )
     grouped = grouped[grouped["amount"] > 0]
     if grouped.empty:
         return _placeholder_chart(
-            output_path, "Reimbursement Types", "No amount to classify"
+            output_path, "Reimbursement Credit Types", "No amount to classify"
         )
 
     try:
@@ -1246,8 +1250,12 @@ def _fig11_reimbursement_treemap(
         squarify.plot(
             sizes=grouped["amount"],
             label=[
-                f"{t}\n{_format_money(a)}"
-                for t, a in zip(grouped["reimb_type"], grouped["amount"])
+                f"{t}\n{_format_money(a)}\n{int(c)} txns"
+                for t, a, c in zip(
+                    grouped["reimb_type"],
+                    grouped["amount"],
+                    grouped["transaction_count"],
+                )
             ],
             color=["#2E86AB", "#1B998B", "#D1495B", "#F6AE2D", "#8F5DB7"],
             alpha=0.9,
@@ -1255,13 +1263,13 @@ def _fig11_reimbursement_treemap(
             text_kwargs={"fontsize": 10},
         )
         ax.axis("off")
-        ax.set_title("Reimbursement Types (Tree Map)")
+        ax.set_title("Reimbursement Credit Types (Tree Map)")
         return _save_chart(fig, output_path)
     except Exception:
         fig, ax = plt.subplots(figsize=(10.8, 5.2))
         grouped = grouped.sort_values("amount")
         ax.barh(grouped["reimb_type"], grouped["amount"], color="#2E86AB")
-        ax.set_title("Reimbursement Types (Fallback Bar)")
+        ax.set_title("Reimbursement Credit Types (Fallback Bar)")
         ax.set_xlabel("Amount (USD)")
         ax.grid(axis="x", alpha=0.25)
         return _save_chart(fig, output_path)
@@ -1273,7 +1281,7 @@ def _fig12_refund_rate_by_sku(clean_df: pd.DataFrame, output_path: Path) -> Path
         or "sku" not in clean_df.columns
         or "type" not in clean_df.columns
     ):
-        return _placeholder_chart(output_path, "Refund Rate by SKU", "No refund data")
+        return _placeholder_chart(output_path, "Refund Ratio by SKU", "No refund data")
 
     qty = _safe_col(clean_df, "quantity").abs()
     orders = clean_df[clean_df["type"].astype("string").eq("Order")].copy()
@@ -1295,14 +1303,14 @@ def _fig12_refund_rate_by_sku(clean_df: pd.DataFrame, output_path: Path) -> Path
 
     if plot_df.empty:
         return _placeholder_chart(
-            output_path, "Refund Rate by SKU", "No SKU refund ratio"
+            output_path, "Refund Ratio by SKU", "No SKU refund ratio"
         )
 
     plot_df = plot_df.sort_values("refund_rate_pct")
     fig_height = max(16.0, 0.28 * len(plot_df) + 4.0)
     fig, ax = plt.subplots(figsize=(13.0, fig_height))
     ax.barh(plot_df["sku"].astype(str), plot_df["refund_rate_pct"], color="#D1495B")
-    ax.set_title("Refund Rate by SKU (Top 30)", fontsize=20, fontweight="bold")
+    ax.set_title("Refund Ratio by SKU (Top 30)", fontsize=20, fontweight="bold")
     ax.set_xlabel("Refund Rate (%)", fontsize=16)
     ax.set_ylabel("SKU", fontsize=16)
     ax.tick_params(axis="x", labelsize=12)
@@ -1874,11 +1882,26 @@ def _append_figure_block(
     numbers: list[int],
 ) -> None:
     figure_descriptions: dict[int, str] = {
+        1: "This line chart shows monthly net income after combining gross revenue and total expenses. It is the quickest way to see whether the settlement improved or deteriorated over time.",
+        2: "This stacked chart compares monthly gross revenue against total expenses. The gap between the two bars shows how much of revenue was absorbed by fees and other deductions.",
         3: "This diverging bar chart shows profit drivers in one view: Gross Revenue (positive), cost/refund impacts (negative), and final Net Income. It is easier to read quickly than a cumulative waterfall when stakeholders focus on component impact.",
+        4: "This pie chart breaks down the main fee categories using absolute values. It is meant to show which fee buckets consume the most cash, not the direction of the sign.",
+        5: "This donut chart groups raw transaction types by their total absolute value. It helps identify which transaction families dominate the settlement flow.",
+        6: "This bar chart ranks the top SKUs by product sales from order-only rows. It reflects sales performance rather than profitability, so a high-selling SKU may still have weak margin.",
+        7: "This bar chart ranks the top SKUs by sold quantity from order-only rows. It is useful for understanding volume concentration and operational demand.",
+        11: "This chart groups reimbursement credits by reason. Lost, Damaged, and Customer Return are Amazon reimbursements, so the amounts shown here are positive credits, not expenses. The transaction count helps separate a few large reimbursements from many small ones.",
         8: "This scatter chart maps each SKU by Product Sales (x-axis) and absolute FBA Fees (y-axis). Dashed median lines split the chart into quadrants to quickly spot SKUs with unusually high fee burden at comparable sales levels.",
         9: "This Pareto view ranks the top SKUs by revenue and overlays cumulative contribution. Use the 80% reference line to estimate how many SKUs drive most revenue, then prioritize those SKUs for pricing, inventory, and ad optimization.",
+        10: "This line chart tracks the top three revenue SKUs over time. It helps separate stable sellers from one-time spikes and shows whether the best products are growing or fading.",
+        12: "This bar chart shows refund ratio by SKU using refunded units divided by sold units within the same reporting period. It is not capped at 100%, so values above 100% mean refunded units in the period exceeded sold units for that SKU, which can happen for low-volume items or when returns land in a different timing window.",
+        13: "This dual-axis chart compares monthly FBA fees with quantity sold. It is useful for checking whether fulfillment cost is scaling proportionally with volume.",
         14: "This area chart shows the monthly total of rows classified as Adjustment and filtered to descriptions containing General Adjustment. The red line is the summed total amount for each month: positive values mean Amazon credited the account, while negative values mean Amazon deducted money.",
+        15: "This bar chart shows storage and non-order fees over time, including FBA inventory fees and related description-based charges. It is intended to surface operational leakage outside direct sales rows.",
+        16: "This heatmap shows monthly gross revenue by state. Darker cells indicate stronger sales concentration in a given region and month.",
+        17: "This bar chart ranks the top cities by gross revenue. It helps identify localized demand concentration and the main shipping markets.",
+        18: "This dual-line chart compares product sales tax and marketplace withheld tax across months. It is meant for reconciliation and spotting divergence between tax collected and tax withheld.",
         19: "This dual-axis monthly chart is used to compare revenue scale and promotional spend in the same view. It shows Gross Revenue (left axis, blue bars) against Promotional Rebates (right axis, yellow bars), helping you see whether promotion intensity is rising, stable, or dropping relative to sales over time.",
+        20: "This histogram shows the distribution of order-level gross revenue. It gives a fast view of average order value spread and whether the business is concentrated in small or high-value orders.",
     }
 
     rendered = 0
@@ -1903,7 +1926,7 @@ def _append_figure_block(
             max_height = 20.0
         description = figure_descriptions.get(fig_no)
         block = [Paragraph(f"Figure {fig_no}: {title}", styles["BodyTextReport"])]
-        if description and fig_no != 12:
+        if description:
             block.append(Paragraph(description, styles["BodyTextReport"]))
         block.extend(
             [
@@ -1998,6 +2021,13 @@ def generate_pdf_report(
             )
         )
         story.append(Spacer(1, 0.16 * cm))
+        story.append(
+            Paragraph(
+                "Table 1 summarizes monthly gross revenue, total expenses, net income, and margin percentage. Use it as the executive P/L view for the settlement period.",
+                styles["BodyTextReport"],
+            )
+        )
+        story.append(Spacer(1, 0.08 * cm))
         _append_table_block(
             story,
             styles,
@@ -2005,6 +2035,13 @@ def generate_pdf_report(
             tables["T1 - P&L Summary (Monthly)"],
             max_rows=24,
         )
+        story.append(
+            Paragraph(
+                "Table 2 groups the raw transaction stream by type group and shows both transaction count and total amount. It is the reconciliation table for understanding where money entered or left the account.",
+                styles["BodyTextReport"],
+            )
+        )
+        story.append(Spacer(1, 0.08 * cm))
         _append_table_block(
             story,
             styles,
@@ -2034,6 +2071,13 @@ def generate_pdf_report(
             )
         )
         story.append(Spacer(1, 0.12 * cm))
+        story.append(
+            Paragraph(
+                "Table 3 is the bestseller view. It ranks SKUs by sold revenue from order rows only, then shows how much of that volume was later refunded.",
+                styles["BodyTextReport"],
+            )
+        )
+        story.append(Spacer(1, 0.08 * cm))
         _append_table_block(
             story,
             styles,
@@ -2041,6 +2085,13 @@ def generate_pdf_report(
             tables["T3 - Top 10 Bestsellers (Revenue & Quantity)"],
             max_rows=10,
         )
+        story.append(
+            Paragraph(
+                "Table 4 highlights the lowest-net-income SKUs so you can quickly inspect items that are underperforming after fees are applied.",
+                styles["BodyTextReport"],
+            )
+        )
+        story.append(Spacer(1, 0.08 * cm))
         _append_table_block(
             story,
             styles,
@@ -2048,6 +2099,13 @@ def generate_pdf_report(
             tables["T4 - Worst Performing SKUs"],
             max_rows=10,
         )
+        story.append(
+            Paragraph(
+                "Table 5 is a full SKU profitability matrix. It lets you compare sales, quantity, fee burden, and gross margin percentage on the same row.",
+                styles["BodyTextReport"],
+            )
+        )
+        story.append(Spacer(1, 0.08 * cm))
         _append_table_block(
             story,
             styles,
@@ -2068,6 +2126,20 @@ def generate_pdf_report(
             )
         )
         story.append(Spacer(1, 0.16 * cm))
+        story.append(
+            Paragraph(
+                "Figure 11 is a reimbursement-credit view, not a loss chart: Lost, Damaged, and Customer Return rows are Amazon credits. Use it to confirm that some large 'Lost' amounts are reimbursements back to the account, while the real outflows are usually in fee and refund tables.",
+                styles["BodyTextReport"],
+            )
+        )
+        story.append(Spacer(1, 0.08 * cm))
+        story.append(
+            Paragraph(
+                "Table 6 lists reimbursement-related adjustments matched from descriptions containing Lost, Damaged, or Customer Return. It is the transaction-level audit trail behind Figure 11.",
+                styles["BodyTextReport"],
+            )
+        )
+        story.append(Spacer(1, 0.08 * cm))
         _append_table_block(
             story,
             styles,
@@ -2075,6 +2147,13 @@ def generate_pdf_report(
             tables["T6 - Reimbursement Log"],
             max_rows=20,
         )
+        story.append(
+            Paragraph(
+                "Table 7 shows refund and return rows sorted by absolute amount. Use it to identify the largest reversals and check which SKUs are driving returns.",
+                styles["BodyTextReport"],
+            )
+        )
+        story.append(Spacer(1, 0.08 * cm))
         _append_table_block(
             story,
             styles,
@@ -2082,6 +2161,13 @@ def generate_pdf_report(
             tables["T7 - Refund / Return Detail"],
             max_rows=20,
         )
+        story.append(
+            Paragraph(
+                "Table 8 summarizes fee buckets from the cleaned analysis scope, so it reflects the operational picture used in the core metrics.",
+                styles["BodyTextReport"],
+            )
+        )
+        story.append(Spacer(1, 0.08 * cm))
         _append_table_block(
             story,
             styles,
@@ -2089,6 +2175,13 @@ def generate_pdf_report(
             tables["T8 - Fees Deep-Dive"],
             max_rows=12,
         )
+        story.append(
+            Paragraph(
+                "Table 8B shows the same fee view on the full raw transaction set. It is included for reconciliation when you want to compare cleaned scope against all transaction types.",
+                styles["BodyTextReport"],
+            )
+        )
+        story.append(Spacer(1, 0.08 * cm))
         _append_table_block(
             story,
             styles,
@@ -2119,6 +2212,13 @@ def generate_pdf_report(
             )
         )
         story.append(Spacer(1, 0.16 * cm))
+        story.append(
+            Paragraph(
+                "Table 9 groups revenue by state and city so you can see where sales are concentrated geographically and where fulfillment demand is strongest.",
+                styles["BodyTextReport"],
+            )
+        )
+        story.append(Spacer(1, 0.08 * cm))
         _append_table_block(
             story,
             styles,
@@ -2126,6 +2226,13 @@ def generate_pdf_report(
             tables["T9 - Sales by State / City"],
             max_rows=20,
         )
+        story.append(
+            Paragraph(
+                "Table 10 reconciles tax collected versus marketplace withheld tax by month. It is intended to surface differences that may need manual review.",
+                styles["BodyTextReport"],
+            )
+        )
+        story.append(Spacer(1, 0.08 * cm))
         _append_table_block(
             story,
             styles,
