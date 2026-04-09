@@ -1,23 +1,23 @@
 # TiAmazon - Amazon Settlement Analytics
 
-Du an phan tich Amazon Settlement theo pipeline tu dong: load data -> clean -> feature engineering -> analysis -> export bang ket qua -> xuat PDF report.
+This project analyzes Amazon settlement data through an automated pipeline: load data -> clean -> feature engineering -> analysis -> export results -> generate a PDF report.
 
-Muc tieu chinh: tao file report PDF o duong dan `outputs/amazon_settlement_report.pdf`.
+The main goal is to create a PDF report at `outputs/amazon_settlement_report.pdf`.
 
-## 1. Yeu cau moi truong
+## 1. Environment Requirements
 
-- macOS/Linux (khuyen nghi)
+- macOS/Linux (recommended)
 - Python 3.11+
-- pip moi
+- Up-to-date `pip`
 
-Kiem tra nhanh:
+Quick check:
 
 ```bash
 python3 --version
 pip --version
 ```
 
-## 2. Cau truc thu muc
+## 2. Project Structure
 
 ```text
 TiAmazon/
@@ -32,46 +32,46 @@ TiAmazon/
   requirements.txt
 ```
 
-Luu y:
-- Dat file raw settlement vao thu muc `data/`.
-- Khong sua file raw truc tiep.
+Notes:
+- Place raw settlement files in the `data/` folder.
+- Do not edit raw files directly.
 
-## 3. Cai dat va khoi tao
+## 3. Setup and Installation
 
-### Buoc 1: Tao virtual environment
+### Step 1: Create a virtual environment
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### Buoc 2: Cai dependencies
+### Step 2: Install dependencies
 
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## 4. Chay pipeline de xuat PDF
+## 4. Run the Pipeline to Generate the PDF
 
-Chay lenh sau tai root project:
+Run the following command from the project root:
 
 ```bash
 python main.py
 ```
 
-Pipeline se thuc hien:
-1. Load tat ca file settlement trong `data/`
-2. Chuan hoa ten cot va validate schema
-3. Clean data (parse datetime, convert numeric, clean text, filter transaction type)
-4. Tao metrics tai chinh va time features
-5. Phan tich SKU, time series, geography, fee
-6. Trich xuat insights
-7. Export CSV va tao PDF report
+The pipeline will:
+1. Load all settlement files in `data/`
+2. Standardize column names and validate the schema
+3. Clean the data (parse datetimes, convert numeric values, clean text, filter transaction types)
+4. Build financial metrics and time-based features
+5. Analyze SKU, time series, geography, and fee patterns
+6. Extract insights
+7. Export CSV files and generate a PDF report
 
-## 5. Dau ra mong doi
+## 5. Expected Outputs
 
-Sau khi chay thanh cong, ban se co:
+After a successful run, you should see:
 
 - `data/processed/clean.csv`
 - `outputs/sku_performance.csv`
@@ -88,63 +88,63 @@ Sau khi chay thanh cong, ban se co:
 - `outputs/worst_days_by_profit.csv`
 - `outputs/amazon_settlement_report.pdf`
 
-## 6. Xac nhan PDF da tao dung
+## 6. Verify the PDF Was Created
 
-Kiem tra file PDF ton tai:
+Check that the PDF file exists:
 
 ```bash
 ls -lh outputs/amazon_settlement_report.pdf
 ```
 
-Neu thay file co kich thuoc > 0 bytes la da xuat thanh cong.
+If the file exists and is larger than 0 bytes, the export succeeded.
 
-## 7. Chay notebook (tuy chon)
+## 7. Run the Notebook (Optional)
 
-Neu ban muon xem bang va chart chi tiet:
+If you want to inspect tables and charts in more detail:
 
 ```bash
 jupyter notebook main.ipynb
 ```
 
-Notebook giup kiem tra trung gian va doi chieu ket qua, nhung viec xuat PDF chinh da duoc `main.py` xu ly.
+The notebook is useful for intermediate checks and result comparison, but the main PDF export is handled by `main.py`.
 
-## 8. Chay test truoc khi chay that
+## 8. Run Tests Before Production Use
 
 ```bash
 pytest -q
 ```
 
-Test se kiem tra cac logic quan trong nhu schema validation va parse numeric/currency.
+The tests cover important logic such as schema validation and numeric/currency parsing.
 
-## 9. Loi thuong gap va cach xu ly
+## 9. Common Errors and Fixes
 
-### Loi: `No data files found in .../data`
+### Error: `No data files found in .../data`
 
-Nguyen nhan:
-- Thu muc `data/` khong co file raw settlement.
+Cause:
+- The `data/` folder does not contain any raw settlement files.
 
-Cach xu ly:
-- Copy file `.csv` (hoac `.tsv`, `.txt`) vao `data/` roi chay lai `python main.py`.
+Fix:
+- Copy a `.csv` file (or `.tsv`, `.txt`) into `data/`, then run `python main.py` again.
 
-### Loi validate schema (missing columns)
+### Error: Schema validation fails (missing columns)
 
-Nguyen nhan:
-- File dau vao thieu cot bat buoc (vd: `date_time`, `settlement_id`, `type`, `sku`, ...).
+Cause:
+- The input file is missing required columns such as `date_time`, `settlement_id`, `type`, `sku`, and others.
 
-Cach xu ly:
-- Kiem tra file dau vao co dung Amazon settlement format khong.
-- Dam bao dong header dung va ten cot khong bi thay doi.
+Fix:
+- Verify that the input file matches the expected Amazon settlement format.
+- Make sure the header row is correct and column names were not changed.
 
-### Tong tien theo type bi sai do dinh dang so
+### Totals by type are incorrect because of number formatting
 
-Da xu ly trong code:
-- Parse tien te da bo ky tu `$` va dau `,` truoc khi `pd.to_numeric`.
+Handled in code:
+- Currency parsing removes `$` and `,` before calling `pd.to_numeric`.
 
-Ban nen:
-- Chay `pytest -q` de dam bao khong bi hoi quy.
-- Doi chieu bang tong trong notebook neu can audit.
+Recommended checks:
+- Run `pytest -q` to make sure there are no regressions.
+- Compare summary tables in the notebook if you need to audit the results.
 
-## 10. Lenh chay nhanh (copy/paste)
+## 10. Quick Run Commands (Copy/Paste)
 
 ```bash
 python3 -m venv .venv

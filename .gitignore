@@ -1,0 +1,48 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Tool cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS files
+.DS_Store
+
+# Reports and generated files
+reports/figures/*.png
+reports/figures/*.jpg
+reports/figures/*.svg
+*.log
+
+
+/*__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+reports/figures/*.png
+reports/figures/*.jpg
+reports/figures/*.svg
+*.log
+
+/data/
+/outputs/
